@@ -1,0 +1,19 @@
+{
+  "name": "animals-for-donuts",
+  "version": "1.0.0",
+  "description": "Slack app treating animals with donuts.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajilityj/animals-for-donuts.git"
+  },
+  "author": "AJ Johnson",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ajilityj/animals-for-donuts/issues"
+  },
+  "homepage": "https://github.com/ajilityj/animals-for-donuts#readme"
+}
