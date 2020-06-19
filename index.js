@@ -1,7 +1,7 @@
 (function() {
-  if (process.env.NODE_ENV !== 'production') {
-    require('dotenv').config();
-  }
+  'use strict';
+  
+  require('dotenv').config();
 
   const { WebClient } = require('@slack/web-api');
   const { createEventAdapter } = require('@slack/events-api');
@@ -23,16 +23,16 @@
       console.error(error);
     }
   };
-  let teamList = fetchUsers().then(data => data.members);
+  let userList = fetchUsers().then(data => data.members);
 
-  // get username of member requesting action
-  const getUserName = async function(user) {
+  // get username from user id
+  const getUserName = async function(userId) {
     let userName = '';
 
     try {
-      for (let member of Object.values(await teamList)) {
-        if (member.id === user) {
-          userName = member.name;
+      for (let user of Object.values(await userList)) {
+        if (user.id === userId) {
+          userName = user.name;
           break;
         }
       }
@@ -43,11 +43,30 @@
     return userName;
   }
 
-  // provide response on request
+  const processTask = function(event) {
+    const task = {
+      description: event.text,
+      assigner: {id: event.user, name: getUserName(event.user)},
+      recipient: {id: event.user, name: getUserName(event.user)}
+    };
+    
+    const splitTaskText = task.description.split(' ');
+
+    for (let i = 0; i < splitTaskText.length; i++) {
+      if (splitTaskText[i].startsWith('<@')) {
+        task.recipient.id = splitTaskText[i].slice(2, -1);
+        task.recipient.name = getUserName(task.recipient.id);
+        splitTaskText.splice(i, 1);
+        task.description = splitTaskText.join(' ');
+        break;
+      }
+    }
+
+    return task;
+  };
+    
   slackEvents.on('app_mention', async event => {
-    const taskRequester = await getUserName(event.user);
-    // remove @donut-feeder from text [<@U015M56GGDQ> ]
-    const taskText = event.text.slice(15);
+    const { description, assigner, recipient } = processTask(event);
 
     const messageJsonBlock = {
       blocks: [
@@ -55,7 +74,7 @@
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `@${taskRequester} assigned you the task: ${taskText}. Have you completed it?`
+            text: `@${await assigner.name} assigned you, @${await recipient.name}, the task: ${description}. Have you completed it?`
           }
         },
         {
@@ -94,7 +113,6 @@
         ...{ channel: event.channel }
       };
       const res = await webClient.chat.postMessage(mentionResponseBlock);
-      console.log('Message sent: ', res.ts);
     } catch (e) {
       console.error(JSON.stringify(e));
     }
