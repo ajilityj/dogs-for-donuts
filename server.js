@@ -89,7 +89,7 @@
 
       // replace original message for button user
       respond({
-        text: `You responded, "${task.status}", to the task, "${task.description}", assigned by ${task.assignedBy.real_name}`,
+        text: `You responded, "${task.status}", to the task, "${task.description}", assigned by ${task.assignedBy.real_name}.`,
         replace_original: true
       });
 

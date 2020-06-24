@@ -4,8 +4,7 @@
   "description": "Slackbot celebrating dogs & donuts!",
   "main": "server.js",
   "scripts": {
-    "start": "npm install; node server.js",
-    "dev": "node server.js",
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
