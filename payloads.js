@@ -5,17 +5,27 @@ module.exports = {
       text: 'TASK CONFIRMATION',
       blocks: JSON.stringify([
         {
+          type: 'divider'
+        },
+        {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '*TASK CONFIRMATION*'
+            text: '\n*TASK CONFIRMATION*'
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `\n>_${context.description}_\n\nAssignee(s):${context.recipients.map(r => ` @${r}`)}`
+            text: `\n>_${context.description}_`
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `\nAssignee(s):${context.recipients.map(r => ` @${r}`)}`
           }
         },
         {
@@ -29,6 +39,9 @@ module.exports = {
       channel: context.channel_id,
       text: 'ACTION REQUIRED: TASK STATUS',
       blocks: JSON.stringify([
+        {
+          type: 'divider'
+        },
         {
           type: 'section',
           text: {
@@ -96,6 +109,9 @@ module.exports = {
       channel: context.channel_id,
       text: 'TASK STATUS UPDATE',
       blocks: JSON.stringify([
+        {
+          type: 'divider'
+        },
         {
           type: 'section',
           text: {
