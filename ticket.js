@@ -3,19 +3,20 @@ const payloads = require('./payloads');
 
 /*
  *  Send task status via
- *  chat.postMessage to the user who initially created it
+ *  chat.postMessage to the initial assigner
  */
-const sendStatus = async (task, status) => {
+const sendStatus = async (task, updatedBy) => {
   // open a DM channel for that user
   const channel = await api.callAPIMethod('conversations.open', {
     users: task.assignedBy.id
   })
 
-  const message = payloads.temp({
+  const message = payloads.assigner_notification({
     channel_id: channel.channel.id,
     description: task.description,
-    recipients: task.recipients,
-    status: status
+    recipients: task.recipients.map(r => r.user.name),
+    updatedBy: updatedBy.name,
+    status: task.status
   });
 
   return await api.callAPIMethod('chat.postMessage', message)
