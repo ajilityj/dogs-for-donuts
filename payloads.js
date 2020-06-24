@@ -1,31 +1,21 @@
 module.exports = {
-  task_confirmation_notification: context => {
+  task_assignment_confirmation: context => {
     return {
       channel: context.channel_id,
       text: 'TASK CONFIRMATION',
       blocks: JSON.stringify([
         {
-          type: 'divider'
-        },
-        {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '*_TASK CONFIRMATION_*'
+            text: '*TASK CONFIRMATION*'
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Description:_ ${context.description}`
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `_Assigned To:_ ${context.recipients.map(r => `@${r}`)}`
+            text: `\n>_${context.description}_\n\nAssignee(s):${context.recipients.map(r => ` @${r}`)}`
           }
         },
         {
@@ -34,47 +24,30 @@ module.exports = {
       ])
     };
   },
-  task_assigned_notification: context => {
+  task_assignment_notification: context => {
     return {
       channel: context.channel_id,
       text: 'ACTION REQUIRED: TASK STATUS',
       blocks: JSON.stringify([
         {
-          type: 'divider'
-        },
-        {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '*_ACTION REQUIRED: TASK STATUS_*'
+            text: '*ACTION REQUIRED: TASK STATUS*'
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Description:_ ${context.description}`
+            text: `\n>_${context.description}_\n\nAssigner: @${context.assignedBy.name}`
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Assigned To:_ ${context.recipients.map(r => `@${r}`)}`
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `_Assigned By:_ @${context.assignedBy.name}`
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `*Please reply with your latest status:*`
+            text: `*Please reply with your latest status:*\n`
           }
         },
         {
@@ -118,47 +91,37 @@ module.exports = {
       ])
     };
   },
-  task_update_notification: context => {
+  task_status_notification: context => {
     return {
       channel: context.channel_id,
-      text: 'TASK UPDATE',
+      text: 'TASK STATUS UPDATE',
       blocks: JSON.stringify([
         {
-          type: 'divider'
-        },
-        {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '*_TASK UPDATE_*'
+            text: '*TASK STATUS UPDATE*'
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Description:_ ${context.description}`
+            text: `\n>_${context.description}_`
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Assigned To:_ ${context.recipients.map(r => `@${r}`)}`
+            text: `\n*Status: ${context.status}*`
           }
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `_Updated By:_ @${context.updatedBy}`
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `*_Status:_ ${context.status}*`
+            text: `Updated By: @${context.updatedBy}`
           }
         },
         {

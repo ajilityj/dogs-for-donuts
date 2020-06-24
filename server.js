@@ -23,7 +23,6 @@
   const bodyParser = require('body-parser');
 
   // Dev requirements
-  // const ticket = require('./ticket');
   const signature = require('./verifySignature');
   const api = require('./api');
   const payloads = require('./payloads');
@@ -69,46 +68,13 @@
       // get details for specified task
       await getTaskDetails(req.body);
 
-      // for each recipient specified ...
+      // send notification directly to each recipient
       for (let recipient of task.recipients) {
-
-        // get channel based on recipient's id
-        const channel = await api.callAPIMethod(
-          'conversations.open',
-          {
-            users: recipient.id
-          }
-        );
-
-        // set notification message for specified recipient
-        const notificationMessage = payloads.task_assigned_notification({
-          channel_id: channel.channel.id,
-          description: task.description,
-          recipients: task.recipients.map(r => r.name),
-          assignedBy: task.assignedBy
-        });
-
-        // post notification directly to task recipient specified
-        await api.callAPIMethod('chat.postMessage', notificationMessage);
+        sendAssignmentNotification(recipient);
       }
 
-      // get channel based on assigner's id
-      const confirmationChannel = await api.callAPIMethod(
-        'conversations.open',
-        {
-          users: task.assignedBy.id
-        }
-      );
-
-      // set confirmation message for assigner
-      const channel = payloads.task_confirmation_notification({
-        channel_id: confirmationChannel.channel.id,
-        description: task.description, 
-        recipients: task.recipients.map(r => r.name),
-      });
-
-      // post confirmation directly to assigner
-      return await api.callAPIMethod('chat.postMessage', channel);
+      // send confirmation message for assigner
+      sendAssignmentConfirmation(task.assignedBy);
 
     } catch (e) {
       console.error(e);
@@ -123,7 +89,7 @@
 
       // replace original message for button user
       respond({
-        text: `You marked the task, "${task.description}", as ${task.status}.`,
+        text: `Your status response to the task, "${task.description}": ${task.status}`,
         replace_original: true
       });
 
@@ -135,16 +101,16 @@
     }
   });
 
-  // send status message to assigner
-  const sendStatusNotification = async (updatedBy) => {
+  // send status notification to assigner
+  const sendStatusNotification = async updatedBy => {
     try {
       // get channel based on assigner's id
       const channel = await api.callAPIMethod('conversations.open', {
         users: task.assignedBy.id
-      })
+      });
 
       // set status message for assigner
-      const message = payloads.task_update_notification({
+      const message = payloads.task_status_notification({
         channel_id: channel.channel.id,
         description: task.description,
         recipients: task.recipients.map(r => r.name),
@@ -153,7 +119,57 @@
       });
 
       // post status notification directly to assigner
-      return await api.callAPIMethod('chat.postMessage', message)
+      return await api.callAPIMethod('chat.postMessage', message);
+
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // send assignment notification to recipient
+  const sendAssignmentNotification = async recipient => {
+    try {
+      // get channel based on recipient's id
+      const channel = await api.callAPIMethod('conversations.open', {
+        users: recipient.id
+      });
+
+      // set notification message for specified recipient
+      const message = payloads.task_assignment_notification({
+        channel_id: channel.channel.id,
+        description: task.description,
+        recipients: task.recipients.map(r => r.name),
+        assignedBy: task.assignedBy
+      });
+
+      // post notification directly to recipient
+      return await api.callAPIMethod('chat.postMessage', message);
+
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // send confirmation notification to assigner
+  const sendAssignmentConfirmation = async () => {
+    try {
+      // get channel based on assigner's id
+      const channel = await api.callAPIMethod(
+        'conversations.open',
+        {
+          users: task.assignedBy.id
+        }
+      );
+
+      // set confirmation message for assigner
+      const message = payloads.task_assignment_confirmation({
+        channel_id: channel.channel.id,
+        description: task.description,
+        recipients: task.recipients.map(r => r.name)
+      });
+
+      // post confirmation notification directly to assigner
+      return await api.callAPIMethod('chat.postMessage', message);
 
     } catch (e) {
       console.error(e);
@@ -161,22 +177,24 @@
   };
 
   // get user info from user id
-  const getUserInfo = async function(userId) {
+  const getUserInfo = async (userId) => {
     try {
       return await webClient.users.info({
         token: config.accessToken,
         user: userId
       });
-    } catch (error) {
-      console.error(error);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   // split slash command req.body into task details
-  const getTaskDetails = async function(taskText) {
+  const getTaskDetails = async (taskText) => {
     try {
       // get user info for assigner
-      task.assignedBy = await getUserInfo(taskText.user_id).then(user => user.user);
+      task.assignedBy = await getUserInfo(taskText.user_id).then(
+        user => user.user
+      );
 
       // split task text into an array
       const taskTextArray = taskText.text.split(' ');
@@ -184,7 +202,6 @@
       // loop through array, saving tagged, non-bot users
       const userArray = [];
       for (let i = 0; i < taskTextArray.length; i++) {
-
         // accounting for deprecated syntax: <@W123|bronte>
         if (taskTextArray[i].startsWith('<@')) {
           const endsWithIndex =
