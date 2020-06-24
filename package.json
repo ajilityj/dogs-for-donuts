@@ -1,22 +1,23 @@
 {
-  "name": "animals-for-donuts",
+  "name": "dogs-for-donuts",
   "version": "1.0.0",
-  "description": "Slack app treating animals with donuts.",
+  "description": "Slackbot celebrating dogs & donuts!",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "npm install; node server.js",
+    "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ajilityj/animals-for-donuts.git"
+    "url": "git+https://github.com/ajilityj/dogs-for-donuts.git"
   },
   "author": "AJ Johnson",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ajilityj/animals-for-donuts/issues"
+    "url": "https://github.com/ajilityj/dogs-for-donuts/issues"
   },
-  "homepage": "https://github.com/ajilityj/animals-for-donuts#readme",
+  "homepage": "https://github.com/ajilityj/dogs-for-donuts#readme",
   "dependencies": {
     "@slack/events-api": "2.3.3",
     "@slack/interactive-messages": "1.6.0",

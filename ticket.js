@@ -11,10 +11,10 @@ const sendStatus = async (task, updatedBy) => {
     users: task.assignedBy.id
   })
 
-  const message = payloads.assigner_notification({
+  const message = payloads.task_update_notification({
     channel_id: channel.channel.id,
     description: task.description,
-    recipients: task.recipients.map(r => r.user.name),
+    recipients: task.recipients.map(r => r.name),
     updatedBy: updatedBy.name,
     status: task.status
   });

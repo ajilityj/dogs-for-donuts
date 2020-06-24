@@ -1,5 +1,40 @@
 module.exports = {
-  recipient_notification: context => {
+  task_confirmation_notification: context => {
+    return {
+      channel: context.channel_id,
+      text: 'TASK CONFIRMATION',
+      blocks: JSON.stringify([
+        {
+          type: 'divider'
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*_TASK CONFIRMATION_*'
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `_Description:_ ${context.description}`
+          }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `_Assigned To:_ ${context.recipients.map(r => `@${r}`)}`
+          }
+        },
+        {
+          type: 'divider'
+        }
+      ])
+    };
+  },
+  task_assigned_notification: context => {
     return {
       channel: context.channel_id,
       text: 'ACTION REQUIRED: TASK STATUS',
@@ -39,7 +74,7 @@ module.exports = {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*Please reply with the latest status:*`
+            text: `*Please reply with your latest status:*`
           }
         },
         {
@@ -49,7 +84,7 @@ module.exports = {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: ':hatched_chick:  Complete',
+                text: ':thumbsup:  Complete',
                 emoji: true
               },
               action_id: 'complete_button',
@@ -59,7 +94,7 @@ module.exports = {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: ':hatching_chick:  In Progress',
+                text: ':point_up:  In Progress',
                 emoji: true
               },
               action_id: 'inProgress_button',
@@ -69,7 +104,7 @@ module.exports = {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: ':egg:  Pending',
+                text: ':fist:  Pending',
                 emoji: true
               },
               action_id: 'blocked_button',
@@ -83,42 +118,7 @@ module.exports = {
       ])
     };
   },
-  assigner_confirmation: context => {
-    return {
-      channel: context.channel_id,
-      text: 'TASK CONFIRMATION',
-      blocks: JSON.stringify([
-        {
-          type: 'divider'
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*_TASK CONFIRMATION_*'
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `_Description:_ ${context.description}`
-          }
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `_Assigned To:_ ${context.recipients.map(r => `@${r}`)}`
-          }
-        },
-        {
-          type: 'divider'
-        }
-      ])
-    };
-  },
-  assigner_notification: context => {
+  task_update_notification: context => {
     return {
       channel: context.channel_id,
       text: 'TASK UPDATE',

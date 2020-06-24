@@ -3,91 +3,96 @@
 
   require('dotenv').config();
 
+  // Environment variables
   const config = {
     accessToken: process.env.SLACK_ACCESS_TOKEN,
     signingSecret: process.env.SLACK_SIGNING_SECRET,
     port: process.env.PORT || 3000
   };
 
+  // Slack requirements
   const { WebClient } = require('@slack/web-api');
   const { createEventAdapter } = require('@slack/events-api');
   const { createMessageAdapter } = require('@slack/interactive-messages');
-
   const webClient = new WebClient(config.accessToken);
   const slackEvents = createEventAdapter(config.signingSecret);
   const slackInteractions = createMessageAdapter(config.signingSecret);
 
+  // App requirements
   const express = require('express');
   const bodyParser = require('body-parser');
-  const ticket = require('./ticket');
+
+  // Dev requirements
+  // const ticket = require('./ticket');
   const signature = require('./verifySignature');
   const api = require('./api');
   const payloads = require('./payloads');
-  
+
+  // start App
   const app = express();
 
+  // initiate task
   const task = {
     assignedBy: null,
     recipients: [],
     description: '',
-    status: 'Pending'
+    status: 'New'
   };
 
-  /*
-   * Parse application/x-www-form-urlencoded && application/json
-   * Use body-parser's `verify` callback to export a parsed raw body
-   * that you need to use to verify the signature
-   */
+  // parse application/x-www-form-urlencoded && application/json
   const rawBodyBuffer = (req, res, buf, encoding) => {
     if (buf && buf.length) {
       req.rawBody = buf.toString(encoding || 'utf8');
     }
   };
+
+  // use body-parser's `verify` callback to verify signature
   app.use(bodyParser.urlencoded({ verify: rawBodyBuffer, extended: true }));
   app.use(bodyParser.json({ verify: rawBodyBuffer }));
 
+  // setup server middleware
   app.use('/actions', slackInteractions.expressMiddleware());
   app.use('/events', slackInteractions.expressMiddleware());
 
-  /*
-   * Endpoint to receive /task slash command from Slack.
-   * Checks verification token and sends appropriate notifications.
-   */
+  // endpoint to receive slash command from Slack
   app.post('/command', async (req, res) => {
-    // verify the signing secret
+
+    // verify Slack signing secret
     if (!signature.isVerified(req)) {
-      // verification token mismatch
       return res.status(404).send('Slack Verification Error');
     }
 
-    res.send('Processing request -- task confirmation to be sent shortly.');
-
-    const taskDetails = await splitEventDetails(req.body);
-    task.assignedBy = await taskDetails.assignedBy.user;
-    task.recipients = await taskDetails.recipients;
-    task.description = await taskDetails.description;
-
     try {
-      // send task notification directly to each recipient specified
+      // send user a response in current channel
+      res.send('Processing request -- will begin fetching shortly...');
+
+      // get details for specified task
+      await getTaskDetails(req.body);
+
+      // for each recipient specified ...
       for (let recipient of task.recipients) {
-        const notificationChannel = await api.callAPIMethod(
+
+        // get channel based on recipient's id
+        const channel = await api.callAPIMethod(
           'conversations.open',
           {
-            users: recipient.user.id
+            users: recipient.id
           }
         );
 
-        const notificationMessage = payloads.recipient_notification({
-          channel_id: notificationChannel.channel.id,
+        // set notification message for specified recipient
+        const notificationMessage = payloads.task_assigned_notification({
+          channel_id: channel.channel.id,
           description: task.description,
-          recipients: task.recipients.map(r => r.user.name),
+          recipients: task.recipients.map(r => r.name),
           assignedBy: task.assignedBy
         });
 
+        // post notification directly to task recipient specified
         await api.callAPIMethod('chat.postMessage', notificationMessage);
       }
 
-      // send task confirmation to assigner
+      // get channel based on assigner's id
       const confirmationChannel = await api.callAPIMethod(
         'conversations.open',
         {
@@ -95,37 +100,65 @@
         }
       );
 
-      const confirmationMessage = payloads.assigner_confirmation({
+      // set confirmation message for assigner
+      const channel = payloads.task_confirmation_notification({
         channel_id: confirmationChannel.channel.id,
-        description: task.description,
-        recipients: task.recipients.map(r => r.user.name)
+        description: task.description, 
+        recipients: task.recipients.map(r => r.name),
       });
 
-      await api.callAPIMethod('chat.postMessage', confirmationMessage);
+      // post confirmation directly to assigner
+      return await api.callAPIMethod('chat.postMessage', channel);
 
     } catch (e) {
-      console.error(JSON.stringify(e));
+      console.error(e);
     }
   });
 
+  // process button interactions within Slack notifications
   slackInteractions.action({ type: 'button' }, (payload, respond) => {
+    try {
+      // get status from button value
+      task.status = payload.actions[0].value;
 
-    const updatedBy = payload.user;
+      // replace original message for button user
+      respond({
+        text: `You marked the task, "${task.description}", as ${task.status}.`,
+        replace_original: true
+      });
 
-    task.status = payload.actions[0].value;
+      // send status notification to assigner
+      return sendStatusNotification(payload.user);
 
-    // replace original message for assignee
-    respond({
-      text: `You marked the task, ${task.description}, as ${task.status}.`,
-      replace_original: true
-    });
-
-    // send new status message to assigner
-    ticket.sendStatus(task, updatedBy);
-
-    // Return a replacement message
-    return { text: 'Processing...' };
+    } catch (e) {
+      console.error(e);
+    }
   });
+
+  // send status message to assigner
+  const sendStatusNotification = async (updatedBy) => {
+    try {
+      // get channel based on assigner's id
+      const channel = await api.callAPIMethod('conversations.open', {
+        users: task.assignedBy.id
+      })
+
+      // set status message for assigner
+      const message = payloads.task_update_notification({
+        channel_id: channel.channel.id,
+        description: task.description,
+        recipients: task.recipients.map(r => r.name),
+        updatedBy: updatedBy.name,
+        status: task.status
+      });
+
+      // post status notification directly to assigner
+      return await api.callAPIMethod('chat.postMessage', message)
+
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // get user info from user id
   const getUserInfo = async function(userId) {
@@ -139,53 +172,60 @@
     }
   };
 
-  const splitEventDetails = async function(event) {
-    const taskDetails = {
-      description: '',
-      assignedBy: null,
-      recipients: []
-    };
+  // split slash command req.body into task details
+  const getTaskDetails = async function(taskText) {
+    try {
+      // get user info for assigner
+      task.assignedBy = await getUserInfo(taskText.user_id).then(user => user.user);
 
-    taskDetails.assignedBy = await getUserInfo(event.user_id);
+      // split task text into an array
+      const taskTextArray = taskText.text.split(' ');
 
-    // split event text into an array
-    const textArray = event.text.split(' ');
+      // loop through array, saving tagged, non-bot users
+      const userArray = [];
+      for (let i = 0; i < taskTextArray.length; i++) {
 
-    let userArray = [];
+        // accounting for deprecated syntax: <@W123|bronte>
+        if (taskTextArray[i].startsWith('<@')) {
+          const endsWithIndex =
+            taskTextArray[i].indexOf('|') > -1
+              ? taskTextArray[i].indexOf('|')
+              : taskTextArray[i].indexOf('>');
 
-    for (let i = 0; i < textArray.length; i++) {
-      if (textArray[i].startsWith('<@')) {
-        // <@U015W8Q9FJQ|ajilityj>
-        const endsWithIndex =
-          textArray[i].indexOf('|') > -1
-            ? textArray[i].indexOf('|')
-            : textArray[i].indexOf('>');
+          // remove '<@' & '>'
+          const userId = taskTextArray[i].slice(2, endsWithIndex);
 
-        const id = textArray[i].slice(2, endsWithIndex); // remove '<@' & '>'
-        const user = await getUserInfo(id);
+          // get user info from user id
+          const user = await getUserInfo(userId);
 
-        // if not bot user, add the user to the user array
-        if (!user.user.is_bot) {
-          userArray.push(user);
+          // if not bot user, add the user to the user array
+          if (!user.user.is_bot) userArray.push(user.user);
+
+          // remove the user, at it's index, from the text array
+          taskTextArray.splice(i, 1);
+
+          // account for splice and forthcoming increment
+          i -= 1;
         }
-
-        // remove the user, at it's index, from the text array
-        textArray.splice(i, 1);
-        i -= 1;
       }
+
+      // set description with remaining text within array
+      task.description = taskTextArray.join(' ');
+
+      // if no recipients are specified, assign it to the assigner
+      task.recipients = userArray.length > 0 ? userArray : [task.assignedBy];
+
+      return;
+
+    } catch (e) {
+      console.error(e);
     }
-
-    taskDetails.description = textArray.join(' ');
-    // if no recipients are specified, assign it to the assigner
-    taskDetails.recipients =
-      userArray.length > 0 ? userArray : [taskDetails.assignedBy];
-
-    return await taskDetails;
   };
 
-  app.listen(config.port || 3000, () => {
+  // set server to listen on configured port
+  app.listen(config.port, () => {
     console.log(
-      '\x1b[36m%s\x1b[0m',
+      '\x1b[34m%s\x1b[0m',
       `Express server listening on port ${config.port}...`
     );
   });
